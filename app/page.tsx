@@ -1,112 +1,147 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { Card, CardContent } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { AtlassianUser } from '@/types/IAtlassianUser';
 
-export default function Home() {
+type UserDetails = {
+  displayName: string;
+  email: string;
+  profilePicture?: {
+    path: string;
+  };
+};
+
+export default function AccessRequestPage() {
   const [email, setEmail] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
-  const [users, setUsers] = useState<any[]>([]);
+  const [users, setUsers] = useState<AtlassianUser[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [userFound, setUserFound] = useState<UserDetails | null>(null);
+  const router = useRouter();
 
   useEffect(() => {
-    const loadGroups = async () => {
+    const loadUsers = async () => {
       try {
-        const res = await fetch('/api/groups');
-
-        if (!res.ok) {
-          throw new Error(`Error ${res.status}: ${res.statusText}`);
-        }
-
-        const raw = await res.json();
-        console.log("Raw groups:", raw);
-
-        if (!Array.isArray(raw)) {
-          throw new Error('Expected an array of groups');
-        }
-
-        const simplified = raw.map((user: any) => {
-          const flat: Record<string, any> = {};
-          for (const key in user) {
-            flat[key] = typeof user[key] === 'object' && user[key] !== null
-              ? JSON.stringify(user[key])
-              : user[key];
-          }
-          return flat;
-        });
-
-        setUsers(simplified);
-      } catch (err: any) {
-        console.error("Error loading users:", err);
-        setError('Failed to load users');
+        const res = await fetch('/api/users');
+        if (!res.ok) throw new Error('Failed to load users');
+        setUsers(await res.json());
+      } catch (err) {
+        console.error('Error loading users:', err);
       }
     };
-
-    loadGroups();
+    loadUsers();
   }, []);
 
-  // const requestAccess = async () => {
-  //   setLoading(true);
-  //   setError(null);
-  //   setSuccessMessage(null);
+  const fetchUserDetails = async (accountId: string): Promise<UserDetails> => {
+    const response = await fetch(`/api/users/${accountId}`);
+    if (!response.ok) throw new Error('Failed to fetch user details');
+    return response.json();
+  };
 
-  //   if (!email) {
-  //     setError('Please enter your email.');
-  //     setLoading(false);
-  //     return;
-  //   }
+  const enableUserAccess = async (accountId: string): Promise<void> => {
+    const response = await fetch('/api/users', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ accountId, action: 'enable' }),
+    });
+    if (!response.ok) throw new Error('Failed to update user lifecycle');
+  };
 
-  //   try {
-  //     const matchedUser = users.find((user: any) => user.email === email);
-  //     console.log("Matched user:", matchedUser);
+  const requestAccess = async () => {
+    if (!email) {
+      setError('Please enter your email or name.');
+      return;
+    }
 
-  //     if (!matchedUser) {
-  //       throw new Error('User not found');
-  //     }
+    setLoading(true);
+    setError(null);
+    setSuccessMessage(null);
+    setUserFound(null);
 
-  //     await callAtlassianLifecycleAction({
-  //       accountId: matchedUser.accountId,
-  //       action: 'enable',
-  //     });
+    try {
+      const matchedUser = users.find(user => 
+        user.email === email || user.name === email
+      );
 
-  //     setStatus('GRANTED');
-  //     setSuccessMessage('Access request submitted successfully.');
-  //   } catch (err: any) {
-  //     console.error(err);
-  //     setError(err.message || 'Failed to request access.');
-  //   } finally {
-  //     setLoading(false);
-  //   }
-  // };
+      if (!matchedUser) {
+        throw new Error('User not found');
+      }
+
+      const userData = await fetchUserDetails(matchedUser.account_id);
+      setUserFound(userData);
+      await enableUserAccess(matchedUser.account_id);
+
+      setTimeout(() => {
+        router.push('https://datawake.atlassian.net/wiki/spaces/dw/overview?mode=global');
+      }, 2500);
+
+    } catch (err: any) {
+      setError(err.message || 'Failed to request access');
+    } 
+  };
 
   return (
-    <div className="min-h-screen p-6">
+    <div className="min-h-screen p-6 pt-28">
       <div className="max-w-xl mx-auto mb-10">
         <Card className="w-full p-6">
           <CardContent>
-            <h2 className="text-xl font-semibold mb-4">Request Access to Confluence</h2>
-
             {error && <p className="text-red-500 mb-2">{error}</p>}
             {successMessage && <p className="text-green-600 mb-2">{successMessage}</p>}
 
-            <div className="mb-4">
-              <label htmlFor="email" className="block mb-1">Email</label>
-              <input
-                id="email"
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="w-full px-3 py-2 border rounded-md"
-                placeholder="your.email@domain.com"
-                required
-              />
-            </div>
+            {!userFound ? (
+              <div>
+                <div className="mb-4">
+                  <label htmlFor="email" className="block mb-1">
+                    Insira seu Nome ou Email
+                  </label>
+                  <input
+                    id="email"
+                    type="text"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className="w-full px-3 py-2 border rounded-md"
+                    placeholder="Nome ou Email"
+                    required
+                  />
+                </div>
 
-            {/* 
-            <Button onClick={requestAccess} disabled={loading} className="w-full">
-              {loading ? 'Requesting...' : 'Request Access'}
-            </Button> 
-            */}
+                <Button 
+                  onClick={requestAccess} 
+                  disabled={loading} 
+                  className="w-full"
+                >
+                  {loading ? 'Requesting...' : 'Solicitar Acesso'}
+                </Button>
+              </div>
+            ) : (
+              <div className="mt-6 flex flex-col items-center">
+                <p className="font-semibold">Olá {userFound.displayName}</p>
+                
+                {userFound.profilePicture && (
+                  <img
+                    src={`https://datawake.atlassian.net/${userFound.profilePicture.path}`}
+                    alt={userFound.displayName}
+                    className="w-40 m-6 rounded-full"
+                  />
+                )}
+
+                <div className='text-center text-md text-gray-500'>
+                  <p>{userFound.email}</p>
+                  <p>
+                    Suas credenciais foram atualizadas. <br />
+                    Você será direcionado ao Confluence em breve.
+                  </p>
+                </div>
+
+                {loading && (
+                  <div className="animate-spin w-12 h-12 mt-8 border-2 border-primary border-t-transparent rounded-full" />
+                )}
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>

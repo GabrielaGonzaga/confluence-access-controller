@@ -10,12 +10,12 @@ export type Payment = {
 }
 
 export const columns: ColumnDef<Payment>[] = [
-  // {
-  //   accessorKey: "account_id",
-  //   header: "Id",
-  // },
   {
-    accessorKey: "name",
+    accessorKey: "accountId",
+    header: "Id",
+  },
+  {
+    accessorKey: "publicName",
     header: "Nome",
   },
   {
@@ -23,11 +23,11 @@ export const columns: ColumnDef<Payment>[] = [
     header: "Email",
   },
   {
-    accessorKey: "last_active",
-    header: "Ùltima ",
+    accessorKey: "isGuest",
+    header: "Convidado",
   },
   {
-    accessorKey: "account_status",
+    accessorKey: "accountStatus",
     header: "Status Conta",
   },
 ]

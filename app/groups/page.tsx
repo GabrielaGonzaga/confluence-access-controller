@@ -10,22 +10,11 @@ export default function Home() {
 
     useEffect(() => {
         const loadGroups = async () => {
-            try {
-                const res = await fetch('/api/groups');
-
-                if (!res.ok) {
-                    throw new Error(`Error ${res.status}: ${res.statusText}`);
-                }
-
-                const raw = await res.json();
-                console.log(raw.results);
-                setGroups(raw.results);
-
-            } catch (err: any) {
-                console.error("Error loading groups:", err);
-                setError(err.message || 'Failed to load groups');
-            }
-        }; 
+            const res = await fetch('/api/groups');
+            const raw = await res.json();
+            console.log(raw.results);
+            setGroups(raw.results);
+        };
 
         loadGroups();
     }, []);
@@ -35,7 +24,6 @@ export default function Home() {
             {error && <p className="text-red-500 mb-2">{error}</p>}
             <ScrollArea className="h-[90vh]">
                 <div className="container mx-auto">
-                    <h3 className="text-lg font-semibold py-4">Groups from Confluence</h3>
                     <BentoGrid items={groups} />
                 </div>
             </ScrollArea>
